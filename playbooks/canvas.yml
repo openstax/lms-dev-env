@@ -52,25 +52,6 @@
       sudo_user: postgres
       with_items: "{{ canvas_db_names }}"
 
-    # - name: Listen on all addresses
-    #   tags:
-    #     - update-postgres
-    #   lineinfile: dest={{ postgres_conf }} line="listen_addresses = '*'" regexp=^listen_addresses
-    #   register: postgres_conf_edit
-
-    # - name: Allow canvas user to connect remotely
-    #   tags:
-    #     - update-postgres
-    #   lineinfile: dest={{ postgres_hba_conf }} insertbefore="^# DO NOT DISABLE!$" line="host {{ item }} canvas 192.168.100.0/24 md5"
-    #   with_items: "{{ canvas_db_names }}"
-    #   register: postgres_hba_edit
-
-    # - name: Restart postgresql
-    #   tags:
-    #     - update-postgres
-    #   service: name=postgresql state=restarted
-    #   when: postgres_conf_edit|changed or postgres_hba_edit|changed
-
 
 - name: App Server system setup
   hosts: all

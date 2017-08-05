@@ -35,7 +35,7 @@ canvas_ruby_version: 2.4.0
 canvas_base_gems:
   - name: bundler
     version: 1.13.3
-canvas_node_version: 6.3.1 # 0.12.13
+canvas_node_version: 6.3.1
 canvas_app_dir: /apps/canvas
 
 canvas_admin_email:
