@@ -1,0 +1,324 @@
+# canvas.yml
+#   Canvas setup playbook
+#
+# This software is public domain.
+#
+
+# - include: canvas/common.yml
+# - include: canvas/db.yml
+# - include: canvas/redis.yml
+# - include: canvas/app.yml
+
+
+- name: Common Server Setup
+  hosts: all
+  sudo: yes
+  tasks:
+    # - name: Update apt cache and upgrade base packages
+    #   tags:
+    #     - update-packages
+    #   apt: update_cache=yes upgrade=yes
+
+    - name: Create canvas user
+      tags:
+        - config-app
+      user: name={{ canvas_service_account }} comment="Canvas Service Account" shell=/bin/bash
+
+
+- name: Database Server Setup
+  hosts: canvas
+  sudo: yes
+  tasks:
+    - include_vars: vars/canvas.yml
+
+    - name: Install Postgresql
+      tags:
+        - update-packages
+        - update-postgres
+      apt: name=postgresql-9.3
+
+    - name: Install python libraries required to manage postgresql with Ansible
+      tags:
+        - update-packages
+        - update-postgres
+      apt: name=python-psycopg2
+
+    - name: Ensure acl is present so that creating DB user succeeds
+      apt:
+        name:  acl
+        state: present
+
+    - name: Create Canvas DB user
+      tags:
+        - update-dbs
+        - update-postgres
+      postgresql_user: name={{ canvas_db_user }} password={{ canvas_db_password }}
+      sudo_user: postgres
+
+    - name: Create Canvas databases
+      tags:
+        - update-dbs
+        - update-postgres
+      postgresql_db: name={{ item }} owner={{ canvas_db_user }}
+      sudo_user: postgres
+      with_items: "{{ canvas_db_names }}"
+
+    # - name: Listen on all addresses
+    #   tags:
+    #     - update-postgres
+    #   lineinfile: dest={{ postgres_conf }} line="listen_addresses = '*'" regexp=^listen_addresses
+    #   register: postgres_conf_edit
+
+    # - name: Allow canvas user to connect remotely
+    #   tags:
+    #     - update-postgres
+    #   lineinfile: dest={{ postgres_hba_conf }} insertbefore="^# DO NOT DISABLE!$" line="host {{ item }} canvas 192.168.100.0/24 md5"
+    #   with_items: "{{ canvas_db_names }}"
+    #   register: postgres_hba_edit
+
+    # - name: Restart postgresql
+    #   tags:
+    #     - update-postgres
+    #   service: name=postgresql state=restarted
+    #   when: postgres_conf_edit|changed or postgres_hba_edit|changed
+
+
+- name: App Server system setup
+  hosts: canvas
+  sudo: yes
+  tasks:
+    - name: Create /apps directory
+      tags:
+        - update-app
+      file: state=directory dest=/apps owner={{ canvas_service_account }}
+
+    - name: Install required packages
+      tags:
+        - update-packages
+      apt: name={{ item }}
+      with_items:
+        - git-core
+        - build-essential
+        - unzip
+        - imagemagick
+        - zlib1g-dev
+        - libxml2-dev
+        - libmysqlclient-dev
+        - libxslt1-dev
+        - libpq-dev
+        - libxmlsec1-dev
+        - libcurl4-gnutls-dev
+        - libxmlsec1
+        - libsqlite3-dev
+        - libreadline-dev
+
+
+- name: App Server app setup
+  hosts: canvas
+  sudo: yes
+  sudo_user: "{{ canvas_service_account }}"
+  tasks:
+    - name: Deploy .gemrc
+      tags:
+        - update-gems
+        - update-ruby
+      copy: src=files/canvas/gemrc dest=~/.gemrc
+
+
+    ######################################################################
+    # anyenv setup
+    #
+
+    - name: Clone/update anyenv installation
+      tags:
+        - update-anyenv
+      git: dest=~/.anyenv repo=https://github.com/riywo/anyenv.git
+
+    - name: Clone/update anyenv-update plugin
+      tags:
+        - update-anyenv
+      git: dest=~/.anyenv/plugins/anyenv-update repo=https://github.com/znz/anyenv-update.git
+
+    - name: Add anyenv settings to anyenv.sh
+      tags:
+        - update-anyenv
+      lineinfile: dest=~/anyenv.sh line='{{ item }}' create=yes
+      with_items:
+        - export PATH=$HOME/.anyenv/bin:$PATH
+        - eval "$(anyenv init -)"
+
+    - name: Add anyenv.sh call to .bashrc
+      tags:
+        - update-anyenv
+      lineinfile: dest=~/.bashrc line='test -e ~/anyenv.sh && source ~/anyenv.sh'
+
+    - name: Install appropriate **envs
+      tags:
+        - update-anyenv
+      args:
+        executable: /bin/bash
+      register: install_env
+      changed_when: install_env.stdout != ""
+      with_items:
+        - rbenv
+        - ndenv
+      shell: |
+        source ~/anyenv.sh &&
+        grep -qx {{ item }} <(anyenv envs) || anyenv install {{ item }}
+
+    - name: Update installed **envs
+      tags:
+        - update-anyenv
+      args:
+        executable: /bin/bash
+      shell: |
+        source ~/anyenv.sh &&
+        anyenv update
+
+
+    ######################################################################
+    # ruby setup
+    #
+
+    - name: Install Ruby
+      tags:
+        - update-ruby
+      args:
+        executable: /bin/bash
+      register: install_ruby
+      changed_when: install_ruby.stdout != ""
+      environment:
+        CONFIGURE_OPTS: "--disable-install-doc"
+      shell: |
+        source ~/anyenv.sh &&
+        rbenv install -s {{ canvas_ruby_version }} &&
+        rbenv global {{ canvas_ruby_version }}
+
+    - name: Install bundler gem
+      tags:
+        - update-ruby
+        - update-gems
+        - update-libs
+      gem: executable={{ canvas_gem }} name={{ item.name }} version={{ item.version }} user_install=no
+      with_items: "{{ canvas_base_gems }}"
+
+    - name: Rehash rbenv binaries
+      tags:
+        - update-ruby
+      args:
+        executable: /bin/bash
+      changed_when: False
+      shell: |
+        source ~/anyenv.sh &&
+        rbenv rehash
+
+
+    ######################################################################
+    # node setup
+    #
+
+    - name: Install Node
+      tags:
+        - update-node
+      args:
+        executable: /bin/bash
+      register: install_node
+      changed_when: install_node.stdout != ""
+      shell: |
+        source ~/anyenv.sh &&
+        grep -qF " {{ canvas_node_version }} " <(ndenv versions) ||
+        ndenv install {{ canvas_node_version }} &&
+        ndenv global {{ canvas_node_version }}
+
+    - name: Rehash ndenv binaries
+      tags:
+        - update-node
+      args:
+        executable: /bin/bash
+      changed_when: False
+      shell: |
+        source ~/anyenv.sh &&
+        ndenv rehash
+
+
+    ######################################################################
+    # canvas app setup
+    #
+
+    - name: Clone/update Canvas source
+      tags:
+        - update-app
+        - update-libs
+      git: dest={{ canvas_app_dir }} repo={{ canvas_src_url }} version={{ canvas_src_tag }} force=yes
+
+    - name: Install bundled gems
+      tags:
+        - update-app
+        - update-gems
+        - update-libs
+      args:
+        executable: /bin/bash
+      shell: |
+        source ~/anyenv.sh &&
+        cd "{{ canvas_app_dir }}" &&
+        bundle install --path=vendor/gems --binstubs=bin
+
+    - name: Deploy configuration
+      tags:
+        - update-app
+        - quick-config
+      template: src=templates/canvas/config/{{ item }}.yml dest={{ canvas_conf_dir }}/{{ item }}.yml mode=0640
+      with_items:
+        - database
+        - delayed_jobs
+        - domain
+        - file_store
+        - outgoing_mail
+        - security
+        - external_migration
+
+    - name: Populate development database
+      tags:
+        - update-app
+        - update-dbs
+      args:
+        executable: /bin/bash
+      environment:
+        CANVAS_LMS_ADMIN_EMAIL: "{{ canvas_admin_email.development }}"
+        CANVAS_LMS_ADMIN_PASSWORD: "{{ canvas_admin_password.development }}"
+        CANVAS_LMS_ACCOUNT_NAME: "{{ canvas_base_account_name.development }}"
+        CANVAS_LMS_STATS_COLLECTION: "{{ canvas_stats_collection.development }}"
+      shell: |
+        source ~/anyenv.sh &&
+        cd "{{ canvas_app_dir }}" &&
+        bundle exec rake db:initial_setup
+
+    - name: Install npm libraries
+      tags:
+        - update-app
+        - update-node
+        - update-npm
+        - update-libs
+      npm: executable={{ canvas_npm }} path={{ canvas_app_dir }}
+
+    - name: Compile static assets
+      tags:
+        - update-app
+        - update-static
+      args:
+        executable: /bin/bash
+      shell: |
+        source ~/anyenv.sh &&
+        cd "{{ canvas_app_dir }}" &&
+        bundle exec rake canvas:compile_assets
+
+    - name: Start Rails server
+      tags:
+        - start-app
+      args:
+        executable: /bin/bash
+      shell: |
+        source ~/anyenv.sh &&
+        cd "{{ canvas_app_dir }}" &&
+        { test -e tmp/pids/server.pid && kill $(<tmp/pids/server.pid); bundle exec rails server -d; }
+
