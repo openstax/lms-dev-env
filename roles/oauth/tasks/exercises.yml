@@ -1,0 +1,22 @@
+---
+- name: create oauth apps
+  sudo_user: "{{ app_user }}"
+  environment: "{{ rails_env_vars }}"
+  shell: >
+    rbenv exec bundle exec rake openstax:applications:create
+  args:
+    chdir: "{{ remote_app_dir }}/{{ app_name }}"
+  run_once: true
+  tags:
+    - oauth
+
+- name: generate oauth apps data as json
+  sudo_user: "{{ app_user }}"
+  environment: "{{ rails_env_vars }}"
+  shell: >
+    rbenv exec bundle exec rake openstax:applications:save_json
+  args:
+    chdir: "{{ remote_app_dir }}/{{ app_name }}"
+  run_once: true
+  tags:
+    - oauth

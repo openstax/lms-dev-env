@@ -1,2 +1,6 @@
 .vagrant
-playbooks/*.retry
+*.retry
+.DS_Store
+tutor-server
+accounts
+tutor-js

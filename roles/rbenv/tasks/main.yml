@@ -1,0 +1,23 @@
+---
+- name: check for rbenv
+  include: check.yml
+  tags:
+    - rbenv-check
+
+- name: set facts
+  set_fact:
+    install: "{{ rbenv_loc.rc != 0 or rbenv_for_app.stat.exists == False or force_rebuild|bool or rbenv_version.stdout|version_compare(required_rbenv_version, '<=') }}"
+  tags:
+    - rbenv-install
+
+- name: install or reinstall rbenv
+  include: install.yml
+  when: install|bool
+  tags:
+    - rbenv-install
+
+- name: set app ruby version
+  include: check_app_ruby_version.yml
+  tags:
+    - ruby-config
+    - ruby-install

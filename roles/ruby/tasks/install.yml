@@ -1,0 +1,21 @@
+---
+- name: get a new ruby with rbenv
+  debug:
+    msg: "{{ install }}"
+  tags:
+    - ruby-install
+    - debug
+
+- name: install desired ruby version
+  sudo_user: "{{ app_user }}"
+  shell: >
+    RBENV_ROOT={{ rbenv_root }}
+    rbenv install {{ ruby_version }}
+  tags:
+    - ruby-install
+
+- name: finalize
+  shell: echo 'rbenv setup complete'
+  notify: rbenv rehash
+  tags:
+    - ruby-install

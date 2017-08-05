@@ -1,0 +1,15 @@
+---
+- name: create ost oauth apps
+  sudo_user: "{{ app_user }}"
+  environment: "{{ rails_env_vars }}"
+  shell: >
+    rbenv exec bundle exec rake "accounts:ost:create_apps[{{ app_url_suffix }}, {{ app_admin_password }}]"
+  args:
+    chdir: "{{ remote_app_dir }}/{{ app_name }}"
+  register: oauth_create
+  run_once: true
+  when:
+    - app_admin_password is defined
+  tags:
+    - oauth
+    - create_oauth_apps

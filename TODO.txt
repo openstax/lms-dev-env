@@ -1,0 +1,2 @@
+1. Put all apps on anyenv (do what canvas did)
+2. Toss monit

@@ -1,0 +1,5 @@
+rbenv_root: "{{ app_user_home }}/.rbenv"
+ruby_version_path: "{{ source_root }}/{{ local_app_dir|default(app_name) }}/.ruby-version"
+ruby_version: 2.2.3
+force_install: no
+required_rbenv_version: 1.1.0

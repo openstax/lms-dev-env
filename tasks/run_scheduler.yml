@@ -1,0 +1,14 @@
+---
+- name: check if whenever installed
+  stat: path="{{ remote_app_dir }}/{{ app_name }}"/config/schedule.rb
+  register: whenever_enabled
+- name: run scheduler tasks
+  sudo_user: "{{ app_user }}"
+  environment:
+    RAILS_ENV: production
+    RBENV_ROOT: "{{ rbenv_root }}"
+    BUNDLE_COMMAND: "/usr/local/bin/rbenv exec bundle exec"
+  shell: >
+    rbenv exec bundle exec whenever -i whenever_jobs
+    chdir="{{ remote_app_dir }}/{{ app_name }}"
+  when: whenever_enabled.stat.exists == True and is_migration_master|bool

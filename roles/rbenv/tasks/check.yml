@@ -1,0 +1,22 @@
+---
+- name: check if rbenv is installed
+  shell: type -P rbenv
+  args:
+    executable: /bin/bash
+  register: rbenv_loc
+  failed_when: rbenv_loc.stderr
+
+- name: check if rbenv is installed for app user
+  stat: >
+    path="{{rbenv_root}}"
+  register: rbenv_for_app
+
+- name: determine rbenv version
+  shell: rbenv --version
+  sudo_user: "{{ app_user }}"
+  args:
+    executable: /bin/bash
+  register: rbenv_version
+  when:
+    - rbenv_loc.rc == 0
+    - rbenv_for_app.stat.exists

@@ -1,0 +1,21 @@
+---
+- name: accounts oauth
+  include: accounts.yml
+  when:
+    - app_name == 'accounts'
+
+- name: exercises oauth
+  include: exercises.yml
+  when:
+    - app_name == 'exercises'
+
+- name: exchange oauth
+  include: exchange.yml
+  when:
+    - app_name == 'exchange'
+
+- name: oauth finalize
+  include: finalize.yml
+  when:
+    - app_name != 'accounts'
+    - app_name != 'tutor'

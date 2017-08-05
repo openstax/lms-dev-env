@@ -1,0 +1,155 @@
+{% if app_ignore_for_nginx_access_log is defined %}
+{% set all_loggables = range( app_ignore_for_nginx_access_log | length() ) | join('$loggable_') %}
+{% for app_ignore_item in app_ignore_for_nginx_access_log %}
+{% set current_item_index = loop.index0 | string %}
+{% set loggables_sep = '_' + current_item_index + '$loggable_' %}
+{% set loggables = app_ignore_item.keys() | join(loggables_sep) %}
+{% set loggables_match = ''.join(['0'] * (app_ignore_item.keys() | length) ) %}
+{% for key, value in app_ignore_item.iteritems() %}
+map ${{ key }} $loggable_{{ key }}_{{ current_item_index }} {
+    {{ value }}  0;
+    default 1;
+}
+{% endfor %}
+
+map "$loggable_{{ loggables }}_{{ current_item_index }}" $loggable_{{ current_item_index }} {
+    "~{{ loggables_match }}" 0;
+    default 1;
+}
+{% endfor %}
+
+map "$loggable_{{ all_loggables }}" $loggable {
+    "~0" 0;
+    default 1;
+}
+
+{% endif %}
+
+upstream unicorn_{{ app_name }} {
+    server unix:{{ unicorn_socket_path }} fail_timeout=0;
+}
+
+server {
+    listen 80;
+{% if nginx_extra_http_port is defined and nginx_extra_http_port %}
+    listen {{ nginx_extra_http_port }};
+{% endif %}
+    server_name {{ app_domain|default('_') }};
+    location /ping {
+      return 200;
+    }
+{% if no_ssl is not defined or no_ssl %}
+    location / {
+      return 301 https://$host$request_uri;
+    }
+
+{% if app_ignore_for_nginx_access_log is defined %}
+    access_log /var/log/nginx/access.log combined if=$loggable;
+{% endif %}
+}
+
+server {
+    listen 443 ssl;
+{% if nginx_extra_https_port is defined and nginx_extra_http_port %}
+    listen {{ nginx_extra_https_port }} ssl;
+{% endif %}
+    server_name {{ app_domain|default('_') }};
+
+{% if app_ignore_for_nginx_access_log is defined %}
+    access_log /var/log/nginx/access.log combined if=$loggable;
+{% endif %}
+
+    ssl_certificate /etc/ssl/certs/{{ nginx_ssl_cert_file_name }};
+    ssl_certificate_key /etc/ssl/private/{{ nginx_ssl_key_name }};
+    ssl_prefer_server_ciphers on;
+    add_header Strict-Transport-Security "max-age=31536000; includeSubdomains";
+    ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
+    ssl_ciphers 'ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-DSS-AES128-GCM-SHA256:kEDH+AESGCM:ECDHE-RSA-AES128-SHA256:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES256-SHA:DHE-RSA-AES128-SHA256:DHE-RSA-AES128-SHA:DHE-DSS-AES128-SHA256:DHE-RSA-AES256-SHA256:DHE-DSS-AES256-SHA:DHE-RSA-AES256-SHA:AES128-GCM-SHA256:AES256-GCM-SHA384:AES128-SHA256:AES256-SHA256:AES128-SHA:AES256-SHA:AES:CAMELLIA:DES-CBC3-SHA:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!PSK:!aECDH:!EDH-DSS-DES-CBC3-SHA:!EDH-RSA-DES-CBC3-SHA:!KRB5-DES-CBC3-SHA';
+
+{% endif %}
+
+    client_max_body_size 4G;
+    large_client_header_buffers 4 32k;
+    keepalive_timeout 75;
+
+    root {{ remote_app_dir }}/{{ app_name }}/public;
+    location /ping {
+        return 200;
+    }
+
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|ttf|eot|woff|woff2)$ {
+        expires 1y;
+        log_not_found off;
+    }
+
+    location ~ ^/(assets|images|javascripts|stylesheets|swfs|system|fonts)/ {
+        gzip_static on;
+        expires max;
+        add_header Cache-Control public;
+    }
+
+    location /ping/ {
+        return 200 'pong!';
+    }
+
+    location / {
+        limit_except OPTIONS GET HEAD POST PUT DELETE PATCH {
+         allow all ;
+    }
+
+    # Support loading rev.txt from any domain (useful for comparing commit diffs)
+    location /rev.txt {
+
+        if ($request_method = 'OPTIONS') {
+            add_header 'Access-Control-Allow-Origin' '*';
+            add_header 'Access-Control-Allow-Credentials' 'true';
+            add_header 'Access-Control-Allow-Methods' 'GET, OPTIONS';
+            add_header 'Access-Control-Expose-Headers' 'ETag';
+            add_header 'Access-Control-Allow-Headers' 'DNT,X-CustomHeader,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,If-None-Match';
+
+            # Valid for 20 days
+            add_header 'Access-Control-Max-Age' 1728000;
+            add_header 'Content-Type' 'text/plain charset=UTF-8';
+            add_header 'Content-Length' 0;
+            return 204;
+        }
+        if ($request_method = 'GET') {
+            add_header 'Access-Control-Allow-Origin' '*';
+            add_header 'Access-Control-Allow-Credentials' 'true';
+            add_header 'Access-Control-Allow-Methods' 'GET, OPTIONS';
+            add_header 'Access-Control-Expose-Headers' 'ETag';
+            add_header 'Access-Control-Allow-Headers' 'DNT,X-CustomHeader,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,If-None-Match';
+        }
+    }
+
+{% if no_ssl is defined and no_ssl %}
+    if ($http_x_forwarded_proto!='https') {
+        return 301 https://$host$request_uri;
+    }
+{% endif %}
+
+    try_files $uri/index.html $uri.html $uri @app;
+    }
+
+    location @app {
+         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+         proxy_set_header Host $http_host;
+         proxy_redirect off;
+         proxy_set_header X-Forwarded-Proto $scheme;
+         proxy_buffer_size   128k;
+         proxy_buffers   4 256k;
+         proxy_busy_buffers_size   256k;
+         proxy_pass http://unicorn_{{ app_name }};
+	 proxy_read_timeout 300s;
+    }
+
+    error_page 500 504 /500.html;
+    location = /500.html {
+        root {{ remote_app_dir }}/{{ app_name }}/public;
+    }
+    
+    error_page 502 503 /503.html;
+    location = /503.html {
+        root {{ app_user_home }}/maint;
+    }
+}

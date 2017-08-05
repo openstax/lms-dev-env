@@ -1,0 +1,48 @@
+---
+- name: reset database
+  sudo_user: "{{ app_user }}"
+  environment: "{{ rails_env_vars }}"
+  shell: >
+    rbenv exec bundle exec rake db:reset
+    chdir="{{ remote_app_dir }}/{{ app_name }}"
+  run_once: true
+  when: is_migration_master|bool and reset_rails_db|bool
+
+- name: run migration
+  sudo_user: "{{ app_user }}"
+  environment: "{{ rails_env_vars }}"
+  shell: >
+    rbenv exec bundle exec rake db:migrate
+    chdir="{{ remote_app_dir }}/{{ app_name }}"
+  run_once: true
+  when: is_migration_master|bool and not reset_rails_db|bool
+
+- name: seed data
+  sudo_user: "{{ app_user }}"
+  environment: "{{ rails_env_vars }}"
+  shell: >
+    rbenv exec bundle exec rake db:seed
+    chdir="{{ remote_app_dir }}/{{ app_name }}"
+  run_once: true
+  when: is_migration_master|bool
+
+- name: precompile assets
+  sudo_user: "{{ app_user }}"
+  environment: "{{ rails_env_vars }}"
+  shell: >
+    rbenv exec bundle exec rake assets:precompile
+    chdir="{{ remote_app_dir }}/{{ app_name }}"
+
+- name: install nginx config
+  template: >
+    src=etc/nginx/sites-available/app.conf.j2
+    dest=/etc/nginx/sites-available/{{ app_name }}.conf
+
+- name: enable nginx config
+  file: >
+    src=/etc/nginx/sites-available/{{ app_name }}.conf
+    dest=/etc/nginx/sites-enabled/{{ app_name }}.conf
+    state=link
+    force=yes
+  notify: restart nginx
+

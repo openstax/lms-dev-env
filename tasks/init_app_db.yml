@@ -1,0 +1,45 @@
+---
+- name: Ensure acl is present so that creating DB user succeeds
+  apt:
+    name:  acl
+    state: present
+
+- include: postgres.yml
+- name: "create {{ app_name }} databases"
+  sudo_user: "{{ pg_user or ansible_ssh_user }}"
+  postgresql_db: >
+    name={{ app_db_name }}
+    encoding='UTF-8'
+    lc_collate='en_US.UTF-8'
+    lc_ctype='en_US.UTF-8'
+    template='template0'
+    login_user="{{ pg_login_user|default(pg_user) }}"
+    login_password="{{ pg_login_password|default('')}}"
+    login_host="{{ pg_host|default('') }}"
+    port="{{ pg_port|default(5432) }}"
+
+- name: "create {{ app_name }} database user"
+  sudo_user: "{{ pg_user or ansible_ssh_user }}"
+  postgresql_user: >
+    db={{ app_db_name }}
+    name={{ app_db_user }}
+    password={{ app_db_password }}
+    login_user="{{ pg_login_user|default(pg_user) }}"
+    login_password="{{ pg_login_password|default('')}}"
+    login_host="{{ pg_host|default('') }}"
+    port="{{ pg_port|default(5432) }}"
+  register: create_db_user_results
+  ignore_errors: true
+
+- name: "apply privileges for {{ app_name }} database"
+  sudo_user: "{{ pg_user or ansible_ssh_user }}"
+  postgresql_privs: >
+    db={{ app_db_name }}
+    type=schema
+    objs=public
+    privs=ALL
+    roles={{ app_db_user }}
+    login_user="{{ pg_login_user|default(pg_user) }}"
+    login_password="{{ pg_login_password|default('')}}"
+    login_host="{{ pg_host|default('') }}"
+    port="{{ pg_port|default(5432) }}"

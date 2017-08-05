@@ -1,0 +1,15 @@
+---
+- name: restart monit service
+  service: name=monit state=reloaded
+
+- name: start monit service
+  service: name=monit state=started
+
+- name: stop monit service
+  service: name=monit state=stopped
+
+- name: stop monit delayed_job tasks
+  shell: monit -g delayed_job stop
+
+- name: start all monit tasks
+  shell: monit start all

@@ -1,0 +1,4 @@
+---
+accounts_db_name: ox_accounts_dev
+accounts_db_user: ox_accounts
+accounts_db_password: ox_accounts

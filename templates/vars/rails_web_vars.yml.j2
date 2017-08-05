@@ -1,0 +1,14 @@
+unicorn_pid_path: /var/run/openstax/{{ app_name }}/unicorn.pid
+unicorn_socket_path: /var/run/openstax/{{ app_name }}/unicorn.sock
+accounts_secrets_path: /secrets/accounts/oauth/ostapps.yml
+exercises_secrets_path: /secrets/exercises/oauth/exercisesapps.yml
+app_user: "ost{{ app_name }}"
+app_user_home: "/home/{{ app_user }}"
+app_url_suffix: "{{ app_oauth_url_suffix|default(app_domain|replace('.openstax.org', '')|replace(app_name, '')) }}"
+remote_archive_dir: "{{ app_user_home }}/src"
+remote_app_dir: "{{ app_user_home }}/www"
+rails_env: production
+rails_env_vars:
+    RAILS_ENV: "{{ rails_env }}"
+    RBENV_ROOT: "{{ app_user_home }}/.rbenv"
+    OUTPUT: json

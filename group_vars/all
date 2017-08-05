@@ -1,0 +1,16 @@
+canvas_service_account: canvas
+pg_user: postgres
+postgres_log_dir: "/var/log/postgresql"
+postgres_logfile_name: "postgresql-{{ postgresql_version }}-main.log"
+postgresql_version: 9.5
+apt_cache_valid_time: 86400
+localdev: yes
+
+
+anyenv_dir: "~/.anyenv"
+rbenv_dir: "{{ anyenv_dir }}/envs/rbenv"
+rbenv_executable: "{{ rbenv_dir }}/bin/rbenv"
+gem_executable: "{{ rbenv_dir }}/shims/gem"
+base_gems:
+  - name: bundler
+    version: 1.13.3

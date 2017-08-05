@@ -1,0 +1,42 @@
+- name: create temporary directory
+  command: mktemp -d /tmp/rbuild.XXXXXX
+  register: tempdir
+  when:
+    - install|bool
+  tags:
+    - rbuild-install
+
+- name: pull ruby-build source
+  git:
+    repo: https://github.com/rbenv/ruby-build.git
+    dest: "{{ tempdir.stdout }}/ruby-build"
+  when:
+    - install|bool
+    - tempdir is defined
+  tags:
+    - ruby-build-pull
+    - rbuild-pull
+
+- name: install ruby-build from source
+  sudo: true
+  shell: ./install.sh
+  args:
+    chdir: "{{ tempdir.stdout }}/ruby-build"
+  when:
+    - install|bool
+    - tempdir is defined
+  tags:
+    - ruby-build-install
+    - rbuild-install
+
+- name: remove source directory
+  sudo: true
+  file:
+    path: "{{ tempdir.stdout }}"
+    state: absent
+  when:
+    - tempdir is defined
+    - install|bool
+  tags:
+    - ruby-build-finish
+    - rbuild-finish

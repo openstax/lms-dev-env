@@ -1,0 +1,38 @@
+---
+- name: check if ruby-build is installed
+  shell: type -P ruby-build
+  args:
+    executable: /bin/bash
+  register: rbuild_loc
+  failed_when: rbuild_loc.stderr
+  tags:
+    - ruby-build-check
+    - rbuild-check
+
+- name: check if ruby-build has required version
+  shell: "ruby-build --definitions | grep -qF {{ ruby_version }}"
+  args:
+    executable: /bin/bash
+  register: rbuild_check
+  ignore_errors: yes
+  when: rbuild_loc.rc == 0
+  tags:
+    - ruby-build-check
+    - rbuild-check
+
+- debug:
+    var: rbuild_check
+
+- name: set facts
+  set_fact:
+    install: "{{ rbuild_loc.rc|default(1) != 0 or rbuild_check.rc|default(1) != 0 or force_install|bool }}"
+  tags:
+    - ruby-build-install
+    - rbuild-install
+
+- name: install or reinstall ruby-build
+  include: install.yml
+  when: install|bool
+  tags:
+    - ruby-build-install
+    - rbuild-install

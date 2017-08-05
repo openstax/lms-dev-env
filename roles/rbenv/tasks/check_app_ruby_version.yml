@@ -1,0 +1,20 @@
+---
+- name: set app ruby version
+  debug:
+    msg: "get .ruby-version for app"
+  tags:
+    - debug
+
+- name: get app ruby version
+  local_action: "shell cat {{ruby_version_path}}"
+  sudo: false
+  register: ruby_version_contents
+  ignore_errors: yes
+  tags:
+    - ruby-config
+
+- name: set app ruby facts
+  set_fact:
+    ruby_version: "{{ ruby_version_contents.stdout }}"
+  tags:
+    - ruby-config

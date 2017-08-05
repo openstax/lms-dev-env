@@ -1,0 +1,46 @@
+# - name: Install Postgresql
+#   tags:
+#     - update-packages
+#     - update-postgres
+#   apt: name=postgresql-{{ postgresql_version }}
+
+- name: Add official repository
+  apt_repository: >
+    repo="deb http://apt.postgresql.org/pub/repos/apt/ precise-pgdg main"
+    state=present
+
+- name: Install latest version
+  apt: >
+    pkg="{{item}}"
+    state=latest
+    update_cache=yes
+    cache_valid_time={{ apt_cache_valid_time }}
+  with_items:
+    - "postgresql-{{postgresql_version}}"
+    - "postgresql-client-{{postgresql_version}}"
+
+- name: Install python libraries required to manage postgresql with Ansible
+  tags:
+    - update-packages
+    - update-postgres
+  apt: name=python-psycopg2
+
+- name: Ensure acl is present so that creating DB user succeeds
+  apt:
+    name:  acl
+    state: present
+
+- name: Create DB user
+  tags:
+    - update-dbs
+    - update-postgres
+  postgresql_user: name={{ db_user }} password={{ db_password }}
+  sudo_user: postgres
+
+- name: Create Databases
+  tags:
+    - update-dbs
+    - update-postgres
+  postgresql_db: name={{ item }} owner={{ db_user }}
+  sudo_user: postgres
+  with_items: "{{ db_names }}"

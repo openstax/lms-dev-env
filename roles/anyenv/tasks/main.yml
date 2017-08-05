@@ -1,0 +1,45 @@
+- name: Clone/update anyenv installation
+  tags:
+    - update-anyenv
+  git: dest=~/.anyenv repo=https://github.com/riywo/anyenv.git
+
+- name: Clone/update anyenv-update plugin
+  tags:
+    - update-anyenv
+  git: dest=~/.anyenv/plugins/anyenv-update repo=https://github.com/znz/anyenv-update.git
+
+- name: Add anyenv settings to anyenv.sh
+  tags:
+    - update-anyenv
+  lineinfile: dest=~/anyenv.sh line='{{ item }}' create=yes
+  with_items:
+    - export PATH=$HOME/.anyenv/bin:$PATH
+    - eval "$(anyenv init -)"
+
+- name: Add anyenv.sh call to .bashrc
+  tags:
+    - update-anyenv
+  lineinfile: dest=~/.bashrc line='test -e ~/anyenv.sh && source ~/anyenv.sh'
+
+- name: Install appropriate **envs
+  tags:
+    - update-anyenv
+  args:
+    executable: /bin/bash
+  register: install_env
+  changed_when: install_env.stdout != ""
+  with_items:
+    - rbenv
+    - ndenv
+  shell: |
+    source ~/anyenv.sh &&
+    grep -qx {{ item }} <(anyenv envs) || anyenv install {{ item }}
+
+- name: Update installed **envs
+  tags:
+    - update-anyenv
+  args:
+    executable: /bin/bash
+  shell: |
+    source ~/anyenv.sh &&
+    anyenv update

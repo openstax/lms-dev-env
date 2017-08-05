@@ -1,0 +1,24 @@
+---
+- name: check and update current ruby version
+  debug:
+    msg: "checking ruby version"
+  tags:
+    - debug
+
+- name: ensure desired ruby version is the global version
+  sudo_user: "{{ app_user }}"
+  shell: >
+    RBENV_ROOT={{ rbenv_root }}
+    rbenv version-name
+  register: ruby_version_output
+  failed_when: False
+  ignore_errors: yes
+  tags:
+    - ruby-config
+
+- name: set ruby facts
+  set_fact:
+    current_ruby: "{{ ruby_version_output.stdout }}"
+    mismatched_ruby: "{{ ruby_version_output.rc != 0 or ruby_version_output.stdout|version_compare(ruby_version, '!=') }}"
+  tags:
+    - ruby-config

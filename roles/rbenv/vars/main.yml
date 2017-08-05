@@ -1,0 +1,20 @@
+---
+force_rebuild: no
+rbenv:
+  packages:
+    - autoconf
+    - bison
+    - build-essential
+    - git
+    - libcurl4-openssl-dev
+    - libmysqlclient-dev
+    - libsqlite3-dev
+    - libpq-dev
+    - libreadline6-dev
+    - libncurses5-dev
+    - libssl-dev
+    - libxml2-dev
+    - libxslt1-dev
+    - zlib1g-dev
+    - libc6-dev
+    - libyaml-dev

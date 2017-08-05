@@ -1,0 +1,20 @@
+---
+- name: Install package
+  apt: >
+    pkg=monit
+    state=installed
+  tags:
+    - configuration
+
+- name: Configure http support
+  template: src=http.j2 dest=/etc/monit/conf.d/http owner=root group=root
+  tags:
+    - configuration
+
+- name: Cue monit restart
+  debug:
+    msg: Trigger monit restart afterwards
+  notify:
+    - restart monit service
+    - start all monit tasks
+  changed_when: True

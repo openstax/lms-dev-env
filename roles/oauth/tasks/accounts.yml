@@ -1,0 +1,57 @@
+---
+- name: create ost oauth apps
+  sudo_user: "{{ app_user }}"
+  environment: "{{ rails_env_vars }}"
+  shell: >
+    rbenv exec bundle exec rake "accounts:ost:create_apps[{{ app_url_suffix }}, {{ app_admin_password }}]"
+  args:
+    chdir: "{{ remote_app_dir }}/{{ app_name }}"
+  register: oauth_create
+  run_once: true
+  tags:
+    - oauth
+    - create_oauth_apps
+    - configuration
+
+- name: fetch oauth info
+  sudo_user: "{{ app_user }}"
+  environment: "{{ rails_env_vars }}"
+  shell: >
+    rbenv exec bundle exec rake accounts:ost:get_app_info
+    chdir={{ remote_app_dir }}/{{ app_name }}
+  run_once: true
+  when: is_migration_master|bool
+  tags:
+    - oauth
+    - fetch_oauth_info
+  register: oauth_info
+  failed_when:
+    - oauth_info.stderr
+    - oauth_info.stdout == ''
+
+- debug:
+    var: oauth_info
+
+- name: ensure secrets directory exists
+  sudo: false
+  file:
+    path: "{{ inventory_dir }}/secrets/accounts/oauth"
+    state: directory
+  run_once: true
+  delegate_to: 127.0.0.1
+  tags:
+    - oauth
+    - fetch_oauth_info
+
+- name: save oauth info
+  sudo: false
+  copy:
+    content: "{{ oauth_info.stdout|from_json|to_yaml }}"
+    dest: "{{ inventory_dir }}/secrets/accounts/oauth/ostapps.yml"
+  run_once: true
+  delegate_to: 127.0.0.1
+  when:
+    - is_migration_master|bool
+  tags:
+    - oauth
+    - fetch_oauth_info

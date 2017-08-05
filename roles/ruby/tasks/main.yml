@@ -1,0 +1,44 @@
+---
+- name: ensure desired ruby version is installed
+  sudo_user: "{{ app_user }}"
+  shell: >
+    RBENV_ROOT={{ rbenv_root }}
+    rbenv versions --bare | grep {{ruby_version}}
+  register: has_ruby_output
+  failed_when: False
+  ignore_errors: yes
+  tags:
+    - ruby-config
+    - ruby-install
+
+- name: set installed ruby facts
+  set_fact:
+    install: "{{ has_ruby_output.rc != 0 or force_install|bool or has_ruby_output.stdout|version_compare(ruby_version, '!=') }}"
+  tags:
+    - ruby-config
+    - ruby-install
+
+- name: install or reinstall ruby
+  include: install.yml
+  when: install|bool
+  tags:
+    - ruby-config
+    - ruby-install
+
+- name: check current ruby version
+  include: get_current_version.yml
+
+- name: set global ruby version
+  sudo_user: "{{ app_user }}"
+  shell: >
+    RBENV_ROOT={{ rbenv_root }}
+    rbenv global {{ ruby_version }}
+  when: mismatched_ruby|bool
+  tags:
+    - ruby-config
+
+- name: update current ruby check
+  when: mismatched_ruby|bool
+  include: get_current_version.yml
+  tags:
+    - ruby-config

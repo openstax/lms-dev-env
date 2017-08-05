@@ -1,0 +1,163 @@
+---
+# Required for ansible <= 1.8.7
+- name: set payments facts if needed
+  set_fact:
+    payments:
+      url: https://payments-dev.openstax.org
+  when: payments is undefined
+
+- name: set local_archive_dir
+  set_fact:
+    local_archive_dir: '{{ source_root }}/archives/{{ app_name }}'
+  when:
+    - local_archive_dir is undefined
+
+- name: set app_path
+  set_fact:
+    app_path: '{{ source_root }}/{{ app_name }}'
+  when:
+    - app_path is undefined
+
+- name: ensure archive dir exists
+  sudo: false
+  local_action: >
+    file path={{ local_archive_dir }}
+    state=directory
+  run_once: true
+
+- name: find git revision
+  sudo: false
+  local_action: >
+    shell git rev-parse --short HEAD
+    chdir={{ app_path }}
+  register: app_git_revision
+  run_once: true
+
+- name: Host system
+  sudo: false
+  local_action: shell uname | tr -d ' '
+  register: local_system
+  run_once: true
+
+- name: set app full name
+  set_fact:
+    app_fullname: "{{ app_name }}-{{ app_git_revision.stdout }}"
+    local_system: "{{ local_system.stdout }}"
+  run_once: true
+
+- name: create archive
+  sudo: false
+  local_action: >
+    shell git archive
+    -o {{ local_archive_dir }}/{{ app_fullname }}.tar HEAD
+    chdir={{ app_path }}
+  run_once: true
+
+- name: extract archive path
+  sudo: false
+  local_action: >
+    shell
+    {{ 'greadlink' if local_system == 'Darwin' else 'readlink' }}
+    --canonicalize {{ local_archive_dir }}/{{ app_fullname }}.tar
+    chdir={{ app_path }}
+  register: source_archive_path_obj
+  run_once: true
+
+- name: register archive paths
+  set_fact:
+    source_archive_path: "{{ source_archive_path_obj.stdout }}"
+    dest_archive_path: "{{ remote_archive_dir }}/{{ app_fullname }}"
+  run_once: true
+
+- name: ensure destination archive directory exists
+  file: >
+    path={{ dest_archive_path }}
+    state=directory
+
+- name: check if there is a previous version already installed
+  stat: >
+    path={{ remote_app_dir }}/{{ app_name }}
+  register: prev_dest_dir
+
+
+- name: remember to clean up previous version
+  set_fact:
+    clean_up_previous_version: true
+    previous_version_path: "{{ prev_dest_dir.stat.lnk_source }}"
+  when: prev_dest_dir.stat.exists and prev_dest_dir.stat.islnk and prev_dest_dir.stat.lnk_source != dest_archive_path
+
+- name: upload archive
+  unarchive: >
+    src={{ source_archive_path }}
+    dest={{ remote_archive_dir }}/{{ app_fullname }}
+    owner={{ app_user }}
+    group=www-data
+
+- name: ensure destination directory exists
+  sudo_user: "{{ app_user }}"
+  file: >
+    path={{ remote_app_dir }}
+    state=directory
+
+- name: create current app symlink
+  sudo_user: "{{ app_user }}"
+  file: >
+    src={{  remote_archive_dir }}/{{ app_fullname }}
+    dest={{ remote_app_dir }}/{{ app_name }}
+    state=link
+    force=yes
+
+- name: install configuration files
+  template:
+    src: "{{ item.template }}"
+    dest: "{{ item.dest }}"
+    owner: "{{ item.owner }}"
+    group: "{{ item.group }}"
+    mode: "{{ item.mode }}"
+  with_items: "{{ app_config_items }}"
+  ignore_errors: yes
+  tags:
+    - copy_configs
+
+- name: add ssl bypass if needed
+  template:
+    src: www/app/config/initializers/bypass_ssl_verification.rb
+    dest: "{{ remote_app_dir }}/{{ app_name }}/config/initializers/bypass_ssl_verification.rb"
+    owner: "{{ app_user }}"
+    group: "www-data"
+  when: bypass_ssl is defined and bypass_ssl|bool
+
+- name: install bundler gem
+  sudo_user: "{{ app_user }}"
+  environment: "{{ rails_env_vars }}"
+  shell: >
+    chdir={{ remote_app_dir }}/{{ app_name }}
+    rbenv exec gem install bundler
+  notify: rbenv rehash
+
+- name: Fix archive dir permissions
+  file: >
+    state=directory
+    owner={{ app_user }}
+    group=www-data
+    recurse=yes
+    path={{ remote_archive_dir }}
+
+- name: Fix app dir permissions
+  file: >
+    state=directory
+    owner={{ app_user }}
+    group=www-data
+    recurse=yes
+    path={{ remote_app_dir }}
+    mode=0770
+
+- name: bundle install
+  sudo_user: "{{ app_user }}"
+  shell: >
+    chdir={{ remote_app_dir }}/{{ app_name }}
+    HOME={{ app_user_home }}
+    PATH={{ app_user_home }}/.rbenv/bin:$PATH
+    rbenv exec bundle install --deployment
+    --without {{ app_excluded_gem_groups }} --path /home/{{ app_user }}/vendor/bundle
+  notify: rbenv rehash

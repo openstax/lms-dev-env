@@ -1,0 +1,11 @@
+app_config_items:
+  - template: "templates/{{ app_name }}/www/config/database.yml.j2"
+    dest: "{{ remote_app_dir }}/{{ app_name }}/config/database.yml"
+    owner: "{{ app_user }}"
+    group: "www-data"
+    mode: 0644
+  - template: "templates/{{ app_name }}/www/config/secrets.yml.j2"
+    dest: "{{ remote_app_dir }}/{{ app_name }}/config/secrets.yml"
+    owner: "{{ app_user }}"
+    group: "www-data"
+    mode: 0644

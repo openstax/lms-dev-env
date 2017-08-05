@@ -18,7 +18,7 @@ Vagrant.configure(2) do |config|
 
   config.vm.provision :ansible_local do |ansible|
     ansible.tags = ENV["ANSIBLE_TAGS"] if ENV["ANSIBLE_TAGS"]
-    ansible.playbook = "playbooks/main.yml"
+    ansible.playbook = "main.yml"
   end
 
   config.vm.hostname = hostname

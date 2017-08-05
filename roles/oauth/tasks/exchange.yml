@@ -1,0 +1,25 @@
+---
+- name: create oauth apps
+  sudo_user: "{{ app_user }}"
+  environment: "{{ rails_env_vars }}"
+  shell:
+    rbenv exec bundle exec rake client_apps:create
+  args:
+    chdir: "{{ remote_app_dir }}/{{ app_name }}"
+  run_once: true
+  tags:
+    - oauth
+
+- name: generate oauth apps data as json
+  sudo_user: "{{ app_user }}"
+  environment: "{{ rails_env_vars }}"
+  shell:
+    rbenv exec bundle exec rake client_apps:save_json
+  args:
+    chdir: "{{ remote_app_dir }}/{{ app_name }}"
+  run_once: true
+  when:
+    - app_name != 'exercises'
+    - app_name != 'tutor'
+  tags:
+    - oauth

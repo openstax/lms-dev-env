@@ -1,0 +1,32 @@
+---
+- name: Check if monit is installed
+  shell: type -P monit
+  args:
+    executable: /bin/bash
+  register: monit_loc
+  failed_when: monit_loc.stderr
+
+- name: Get whether monit daemon is running
+  shell: service monit status | tail -1 | grep "Stopped"
+  register: monit_is_stopped_output
+  failed_when: monit_is_stopped_output.stderr
+  when:
+    - monit_loc.rc == 0
+
+# Stopping the daemon before stopping the monit tasks will
+# bring running monit tasks to foreground
+- name: Stop monit service
+  service: name=monit state=stopped
+  when:
+    - monit_loc.rc == 0
+    - monit_is_stopped_output.rc == 1
+
+# Stopping monit tasks in the foreground means that ansible
+# will wait until monit tasks are stopped before continuing.
+- name: Stop monit all tasks during deployment
+  shell: monit stop all
+  register: monit_stop_output
+  failed_when: False
+  ignore_errors: yes
+  when:
+    - monit_loc.rc == 0

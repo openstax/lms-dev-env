@@ -1,0 +1,98 @@
+---
+
+# - name: Setup Postgres
+#   hosts: all
+#   sudo: true
+#   include_vars: vars/accounts.yml
+#   roles:
+#     - { role: common, sudo: yes }
+#     - role: simple_postgres
+#       postgresql_version: 9.5
+#       db_user: "{{ accounts_db_user }}"
+#       db_password: "{{ accounts_db_password }}"
+#       db_names:
+#         - "{{ accounts_db_name }}"
+#   run_once: true
+
+
+- name: configure accounts db servers
+  hosts: all
+  sudo: true
+  roles:
+    - { role: common, sudo: yes }
+    - role: postgres
+      postgresql_version: 9.5
+
+- name: initialize database
+  hosts: all
+  sudo: true
+  tasks:
+    - include_vars: vars/accounts.yml
+    - include: tasks/init_app_db.yml
+      app_name: accounts
+      app_db_name: "{{ accounts_db_name }}"
+      app_db_user: "{{ accounts_db_user }}"
+      app_db_password: "{{ accounts_db_password }}"
+      run_once: true
+
+- name: set up envs
+  hosts: all
+  sudo: true
+  sudo_user: vagrant
+  vars:
+    - ruby_version: 2.3.3
+  roles:
+    - role: anyenv
+    - role: simple_ruby
+
+# - name: configure accounts web servers
+#   hosts: all
+#   sudo: true
+#   vars:
+#     app_name: accounts
+#     app_domain: "{{ accounts_app_domain }}"
+#     background_worker_timeout: 300
+#   pre_tasks:
+#     - name: Include rails web variables
+#       include_vars: "templates/vars/rails_web_vars.yml.j2"
+#       tags:
+#         - accounts_oauth
+#         - copy_configs
+#     - name: Include app config variables
+#       include_vars: "templates/vars/rails4_app_config.yml.j2"
+#       tags:
+#         - accounts_oauth
+#         - copy_configs
+#     - name: Create application user
+#       include: tasks/create_user.yml app_user_password=ost
+#       tags: accounts_oauth
+#     # - include: tasks/monit_delayed_job_stop.yml
+#     - include: roles/monit/tasks/stop.yml
+#       tags:
+#         - monit
+#       when:
+#         - restart_monit
+#   roles:
+#     - role: common
+#       tags: configuration
+#     - role: ntp
+#       tags: configuration
+#     - role: monit
+#       tags:
+#         - monit
+#     # May need to comment out configuration tag to facilitate a rebuild
+#     - role: ruby
+#       tags:
+#         - ruby-config
+#         - rbenv
+#     - role: railsapp
+#       local_archive_dir: '{{ source_root }}/archives/{{ app_name }}'
+#       app_path: '{{ source_root }}/{{ app_name }}'
+#     - role: oauth
+#       tags: oauth
+#   tasks:
+# #    - include: tasks/rails_app.yml
+# #    - include: tasks/accounts_save_oauth_info.yml
+# #      tags: accounts_oauth
+# #      when: app_admin_password is defined
+# #    - include: tasks/run_scheduler.yml

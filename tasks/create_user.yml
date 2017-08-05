@@ -1,0 +1,13 @@
+---
+
+- name: add app user
+  user: name={{ app_user }} password={{ app_user_password }}
+  when: ansible_distribution == 'Ubuntu'
+
+- name: add app user to sudoers
+  action: lineinfile dest=/etc/sudoers regexp="{{ app_user }} ALL" line="{{ app_user }} ALL=(ALL) NOPASSWD:ALL" state=present
+  when: ansible_distribution == 'Ubuntu'
+
+- name: register app user home variable
+  set_fact:
+    app_user_home: "/home/{{ app_user }}"

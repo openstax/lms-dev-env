@@ -1,0 +1,19 @@
+---
+- include: setup_delete_oldest.yml
+
+- include: install_ssl.yml
+  when: no_ssl is not defined or not no_ssl
+  tags:
+     - install_ssl
+     - configuration
+
+- name: finalize
+  tags: finalize
+  shell: echo "Almost done"
+  notify:
+    - restart unicorn
+    - restart nginx
+- meta: flush_handlers
+- include: register_elb.yml
+  when: elb_name is defined
+  tags: register_elb

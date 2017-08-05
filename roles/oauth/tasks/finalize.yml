@@ -1,0 +1,65 @@
+---
+- name: create oauth apps
+  sudo_user: "{{ app_user }}"
+  environment: "{{ rails_env_vars }}"
+  shell: >
+    rbenv exec bundle exec rake openstax:applications:create
+  args:
+    chdir: "{{ remote_app_dir }}/{{ app_name }}"
+  run_once: true
+  tags:
+    - oauth
+
+- name: ensure local secrets directory exists
+  sudo: false
+  file:
+    path: "{{ inventory_dir }}/secrets/{{ app_name }}/oauth"
+    state: directory
+  run_once: true
+  delegate_to: 127.0.0.1
+  tags:
+    - oauth
+
+- name: save oauth info as json
+  fetch:
+    src: "{{ remote_app_dir }}/{{ app_name }}/client_apps.json"
+    dest: "{{ inventory_dir }}/secrets/{{ app_name }}/oauth/"
+    flat: yes
+  run_once: true
+  tags:
+    - oauth
+
+- name: read oauth info
+  sudo_user: "{{ app_user }}"
+  set_fact:
+    oauth_apps: "{{ lookup('file', inventory_dir~'/secrets/'~app_name~'/oauth/client_apps.json') }}"
+  run_once: true
+  tags:
+    - oauth
+
+- name: save yaml oauth info
+  sudo: false
+  copy:
+    content: "{{ oauth_apps|to_yaml }}"
+    dest: "{{ inventory_dir }}/secrets/{{ app_name }}/oauth/{{ app_name }}apps.yml"
+  run_once: true
+  delegate_to: 127.0.0.1
+  tags:
+    - oauth
+
+- name: delete local json file
+  sudo: false
+  file:
+    path: "{{ inventory_dir }}/secrets/{{ app_name }}/oauth/client_apps.json"
+    state: absent
+  run_once: true
+  delegate_to: 127.0.0.1
+  tags:
+    - oauth
+
+- name: delete remote json file
+  file:
+    path: "{{ remote_app_dir }}/{{ app_name }}/client_apps.json"
+    state: absent
+  tags:
+    - oauth
