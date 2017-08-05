@@ -1,14 +1,3 @@
-# canvas.yml
-#   Canvas setup playbook
-#
-# This software is public domain.
-#
-
-# - include: canvas/common.yml
-# - include: canvas/db.yml
-# - include: canvas/redis.yml
-# - include: canvas/app.yml
-
 
 - name: Common Server Setup
   hosts: all
@@ -26,7 +15,7 @@
 
 
 - name: Database Server Setup
-  hosts: canvas
+  hosts: all
   sudo: yes
   tasks:
     - include_vars: vars/canvas.yml
@@ -84,7 +73,7 @@
 
 
 - name: App Server system setup
-  hosts: canvas
+  hosts: all
   sudo: yes
   tasks:
     - name: Create /apps directory
@@ -114,7 +103,7 @@
 
 
 - name: App Server app setup
-  hosts: canvas
+  hosts: all
   sudo: yes
   sudo_user: "{{ canvas_service_account }}"
   tasks:
