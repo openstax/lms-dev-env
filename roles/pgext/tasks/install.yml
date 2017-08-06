@@ -1,0 +1,9 @@
+---
+- name: psql setup
+  debug:
+    msg: "setup psql as needed: {{ psql_install }}"
+  tags:
+    - debug
+
+- name: install psql if needed
+  apt: name=postgresql-client update_cache=yes state=latest

@@ -1,0 +1,18 @@
+# Ansible < 1.9 does not have the postgresql_ext module so this is not currently
+# in use.  See comment in `main.yml` for more information.
+
+---
+- name: install psycopg2
+  apt:
+    pkg: psycopg2
+    state: latest
+
+- name: add Postgresql extensions
+  postgresql_ext:
+    db: "{{ pgext_db }}"
+    login_host: "{{ pgext_host }}"
+    login_password: "{{ pgext_super_password }}"
+    login_user: "{{ pgext_superuser }}"
+    port: "{{ pgext_port|default(5432) }}"
+    name: "{{ item }}"
+    with_items: "{{ pgext_extensions }}"

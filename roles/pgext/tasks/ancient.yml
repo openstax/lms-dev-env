@@ -1,0 +1,27 @@
+---
+- name: check for pqsl
+  include: check.yml
+  tags:
+    - psql-check
+
+- name: install or reinstall pqsl
+  include: install.yml
+  when: psql_install|bool or psql_force_install|bool
+  tags:
+    - psql-install
+
+- name: setup extensions on remote database
+  shell: >
+    psql --host {{ pgext_host }} --port {{ pgext_port|default(5432) }} -U {{ pgext_superuser }} -d {{ pgext_db }} -c 'CREATE EXTENSION IF NOT EXISTS {{ item }};'
+  environment:
+    PGPASSWORD: "{{ pgext_super_password }}"
+  with_items: "{{ pgext_extensions }}"
+  when:
+    - pgext_host != 'localhost'
+
+- name: setup extensions on local database
+  shell: >
+    sudo -u {{ pgext_superuser }} psql {{ pgext_superuser }} -d {{ pgext_db }} -c 'CREATE EXTENSION IF NOT EXISTS {{ item }};'
+  with_items: "{{ pgext_extensions }}"
+  when:
+    - pgext_host == 'localhost'

@@ -1,0 +1,3 @@
+---
+psql_install: False
+psql_force_install: False

@@ -1,0 +1,12 @@
+---
+- name: set up postgres extensions as needed
+  debug:
+    msg: "setup postgres extensions {{ pgext_extensions }} for {{ pgext_db }}"
+  tags:
+    - debug
+
+# Ansible 1.9 has the postgresql_ext module.  The `include: ancient.yml` should be
+# replaced with `include: current.yml` or the contents of `current.yml` should be
+# moved here.
+- name: extend the database
+  include: ancient.yml

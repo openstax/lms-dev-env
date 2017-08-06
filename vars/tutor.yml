@@ -1,0 +1,4 @@
+---
+tutor_db_name: ox_tutor_dev
+tutor_db_user: ox_tutor
+tutor_db_password: ox_tutor_secret_password
