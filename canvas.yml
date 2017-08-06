@@ -282,13 +282,13 @@
         cd "{{ canvas_app_dir }}" &&
         bundle exec rake canvas:compile_assets
 
-    - name: Start Rails server
-      tags:
-        - start-app
-      args:
-        executable: /bin/bash
-      shell: |
-        source ~/anyenv.sh &&
-        cd "{{ canvas_app_dir }}" &&
-        { test -e tmp/pids/server.pid && kill $(<tmp/pids/server.pid); bundle exec rails server -d; }
+    # - name: Start Rails server
+    #   tags:
+    #     - start-app
+    #   args:
+    #     executable: /bin/bash
+    #   shell: |
+    #     source ~/anyenv.sh &&
+    #     cd "{{ canvas_app_dir }}" &&
+    #     { test -e tmp/pids/server.pid && kill $(<tmp/pids/server.pid); bundle exec rails server -d; }
 
