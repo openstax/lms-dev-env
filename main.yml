@@ -1,2 +1,2 @@
 - include: accounts.yml
-# - include: canvas.yml
+- include: canvas.yml

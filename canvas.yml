@@ -8,10 +8,10 @@
     #     - update-packages
     #   apt: update_cache=yes upgrade=yes
 
-    - name: Create canvas user
-      tags:
-        - config-app
-      user: name={{ canvas_service_account }} comment="Canvas Service Account" shell=/bin/bash
+    # - name: Create canvas user
+    #   tags:
+    #     - config-app
+    #   user: name={{ canvas_service_account }} comment="Canvas Service Account" shell=/bin/bash
 
 
 - name: Database Server Setup
@@ -24,7 +24,7 @@
       tags:
         - update-packages
         - update-postgres
-      apt: name=postgresql-9.3
+      apt: name=postgresql-9.5
 
     - name: Install python libraries required to manage postgresql with Ansible
       tags:
