@@ -31,8 +31,13 @@ Vagrant.configure(2) do |config|
     vb.memory = vm_memory
     vb.cpus = vm_cpus
 
-    # use nat dns to avoid bizarre dns slowdowns
-    vb.customize ["modifyvm", :id, "--natdnsproxy1", "off"]
-    vb.customize ["modifyvm", :id, "--natdnshostresolver1", "off"]
+    # Use this to use normal DNS (good for installing stuff)
+    #
+    vb.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
+
+    # Use nat dns to avoid bizarre dns slowdowns (after installing normally)
+    #
+    # vb.customize ["modifyvm", :id, "--natdnsproxy1", "off"]
+    # vb.customize ["modifyvm", :id, "--natdnshostresolver1", "off"]
   end
 end
