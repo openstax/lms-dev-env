@@ -7,6 +7,7 @@ forwarded_ports = [
   { guest: 2999, host: 2999 }, # Accounts
   { guest: 3000, host: 3000 }, # Canvas
   { guest: 3001, host: 3001 }, # Tutor
+  { guest: 8080, host: 8080 }, # Moodle
 ]
 
 # Run Canvas with:
@@ -33,11 +34,11 @@ Vagrant.configure(2) do |config|
 
     # Use this to use normal DNS (good for installing stuff)
     #
-    vb.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
+    # vb.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
 
     # Use nat dns to avoid bizarre dns slowdowns (after installing normally)
     #
-    # vb.customize ["modifyvm", :id, "--natdnsproxy1", "off"]
-    # vb.customize ["modifyvm", :id, "--natdnshostresolver1", "off"]
+    vb.customize ["modifyvm", :id, "--natdnsproxy1", "off"]
+    vb.customize ["modifyvm", :id, "--natdnshostresolver1", "off"]
   end
 end

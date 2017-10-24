@@ -1,0 +1,114 @@
+---
+- name: Upgrade PHP
+  hosts: all
+  sudo: yes
+  tasks:
+    - name: Add repository
+      apt_repository: >
+        repo=ppa:ondrej/php
+        state=present
+
+    - name: Install packages
+      apt: >
+        pkg={{ item }}
+        state=installed
+        force=yes
+      with_items:
+        - php5.6
+        - php5.6-mcrypt
+        - php5.6-mbstring
+        - php5.6-curl
+        - php5.6-cli
+        - php5.6-mysql
+        - php5.6-gd
+        - php5.6-intl
+        - php5.6-xsl
+        - php5.6-zip
+
+- name: common inclusion
+  hosts: all
+  sudo: true
+  roles:
+    - { role: common, sudo: yes }
+
+- name: Apache
+  hosts: all
+  sudo: yes
+  handlers:
+    - name: restart apache2
+      service: name=apache2 state=restarted
+  tasks:
+    - name: install apache2
+      apt: name={{ item }} state=latest
+      with_items:
+        - apache2
+        - php5-curl
+        - libapache2-mod-php5
+
+    - name: enabled mod_rewrite
+      apache2_module: name=rewrite state=present
+
+    - name: apache2 listen on port {{ http_port }}
+      lineinfile: dest=/etc/apache2/ports.conf regexp="^Listen " line="Listen {{ http_port }}" state=present
+
+    - name: create virtual host file
+      template: src=templates/moodle/virtualhost.conf.j2 dest=/etc/apache2/sites-available/{{ moodle_domain }}.conf
+
+    - name: a2ensite {{ moodle_domain }}
+      command: a2ensite {{ moodle_domain }}
+      args:
+        creates: /etc/apache2/sites-enabled/{{ moodle_domain }}.conf
+      notify:
+        - restart apache2
+
+- name: get Moodle code (git)
+  hosts: all
+  sudo: yes
+  roles:
+    - { role: git, sudo: yes }
+  tasks:
+    - name: clear index.html from /var/www/
+      file: path=/var/www/html/index.html state=absent
+
+    - name: update owner and group /var/www/html folder to www-data
+      file: path=/var/www/html state=directory recurse=yes owner=www-data group=www-data
+
+    - name: clone GIT repo
+      # git: repo=git://git.moodle.org/moodle.git
+      git: repo=https://github.com/moodle/moodle.git
+           dest=/var/www/html
+           force=yes
+           depth=1
+           version="MOODLE_33_STABLE"
+
+- name: Setup moodledata
+  hosts: all
+  sudo: yes
+  tasks:
+    - name: creating moodledata folder (no NFS)
+      file: path=/home/ubuntu/moodledata-dev state=directory owner=www-data group=www-data
+
+- name: Moodle database
+  hosts: all
+  sudo: yes
+  handlers:
+    - name: restart apache2
+      service: name=apache2 state=restarted
+  tasks:
+    - name: install MariaDB server package
+      apt: name={{ item }} state=latest
+      with_items:
+        - mariadb-server
+        - python-mysqldb
+        - php5-mysqlnd
+      notify:
+        - restart apache2
+
+    - name: start Mysql Service
+      service: name=mysql state=started enabled=true
+
+    - name: create a new database
+      mysql_db: name={{ moodle_db_name }} state=present collation=utf8_general_ci
+
+    - name: create a database user
+      mysql_user: name={{ moodle_db_user }} password={{ moodle_db_passwd }} priv=*.*:ALL host=localhost state=present

@@ -58,3 +58,7 @@
     - libxmlsec1
     - libsqlite3-dev
     - libreadline-dev
+
+# - name: Upgrade packages
+#   apt:
+#     upgrade: dist
