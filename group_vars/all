@@ -14,3 +14,9 @@ gem_executable: "{{ rbenv_dir }}/shims/gem"
 base_gems:
   - name: bundler
     version: 1.13.3
+
+http_port: 8080
+moodle_db_name: moodle
+moodle_db_user: moodle
+moodle_db_passwd: moodle
+moodle_domain: moodle

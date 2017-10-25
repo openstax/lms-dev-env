@@ -32,6 +32,43 @@
         - pgcrypto
 
 
+- name: initialize tutor database
+  hosts: all
+  sudo: true
+  pre_tasks:
+    - include_vars: vars/tutor.yml
+    - include: tasks/init_app_db.yml
+      app_name: tutor
+      app_db_name: "ox_tutor_test"
+      app_db_user: "{{ tutor_db_user }}"
+      app_db_password: "{{ tutor_db_password }}"
+      run_once: true
+  roles:
+    - role: pgext
+      run_once: true
+      pgext_db: "ox_tutor_test"
+      pgext_superuser: "{{ pg_user }}"
+      pgext_super_password: ""
+      pgext_host: "localhost"
+      pgext_extensions:
+        - plpgsql
+        - hstore
+        - pgcrypto
+
+- name: Give tutor DB user access to create DBs and do super things
+  hosts: all
+  tasks:
+    - name: dev DB
+      postgresql_user:
+        name: "{{ tutor_db_user }}"
+        db: "{{ tutor_db_name }}"
+        role_attr_flags: CREATEDB,SUPERUSER
+    - name: test DB
+      postgresql_user:
+        name: "{{ tutor_db_user }}"
+        db: "ox_tutor_test"
+        role_attr_flags: CREATEDB,SUPERUSER
+
 - name: set up envs
   hosts: all
   sudo: true
@@ -41,3 +78,6 @@
   roles:
     - role: anyenv
     - role: simple_ruby
+
+
+
